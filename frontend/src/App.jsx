@@ -46,44 +46,114 @@ function Card({ title, children, actions }) {
 function WalletScreen() {
   const [pub, setPub] = useState("");
   const [sec, setSec] = useState("");
-  const [balances] = useState([{ asset: "USDC (testnet)", amount: "0.00" }, { asset: "XLM", amount: "10.00" }]);
+  const [loading, setLoading] = useState(false);
+  const [balances, setBalances] = useState([]);
+
+  const API = import.meta.env.VITE_API_URL || "http://localhost:3001";
+
+  async function createWallet() {
+    try {
+      setLoading(true);
+      const res = await fetch(`${API}/create-account`, { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || "Create failed");
+      setPub(data.publicKey);
+      setSec(data.secretKey);
+      setBalances([]); // reset
+    } catch (e) {
+      alert(`Create error: ${e.message}`);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function fetchBalance() {
+    if (!pub) return alert("No public key yet");
+    try {
+      setLoading(true);
+      const res = await fetch(`${API}/balance/${pub}`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || "Balance error");
+      setBalances(data.balances || []);
+    } catch (e) {
+      alert(`Balance error: ${e.message}`);
+    } finally {
+      setLoading(false);
+    }
+  }
 
   return (
     <div className="grid md:grid-cols-2 gap-6">
-      <Card title="Account">
+      <Card
+        title="Account"
+        actions={
+          <div className="flex gap-2">
+            <button
+              onClick={createWallet}
+              className="px-3 py-2 rounded-lg bg-primary/80 hover:bg-primary disabled:opacity-60"
+              disabled={loading}
+            >
+              {loading ? "Working..." : "Create Wallet"}
+            </button>
+            <button
+              onClick={fetchBalance}
+              className="px-3 py-2 rounded-lg border border-white/15 hover:border-white/30 disabled:opacity-60"
+              disabled={loading || !pub}
+            >
+              Check Balance
+            </button>
+          </div>
+        }
+      >
         <div className="space-y-3">
-          <label className="block text-sm text-white/70">Public Key</label>
-          <input
-            className="w-full rounded-lg bg-[#0A0D14] border border-white/10 px-3 py-2 outline-none focus:border-primary/60"
-            placeholder="G... (public key)"
-            value={pub}
-            onChange={e => setPub(e.target.value)}
-          />
-          <label className="block text-sm text-white/70">Secret (local dev only)</label>
-          <input
-            type="password"
-            className="w-full rounded-lg bg-[#0A0D14] border border-white/10 px-3 py-2 outline-none focus:border-primary/60"
-            placeholder="S... (secret key)"
-            value={sec}
-            onChange={e => setSec(e.target.value)}
-          />
-          <p className="text-xs text-white/50">Never share secrets in production. This field exists only for local MVP testing.</p>
+          <div>
+            <label className="block text-sm text-white/70">Public Key</label>
+            <input
+              className="w-full rounded-lg bg-[#0A0D14] border border-white/10 px-3 py-2 font-mono text-xs"
+              placeholder="G... (public key)"
+              value={pub}
+              onChange={e => setPub(e.target.value)}
+            />
+          </div>
+          <div>
+            <label className="block text-sm text-white/70">
+              Secret (local dev only)
+            </label>
+            <input
+              type="password"
+              className="w-full rounded-lg bg-[#0A0D14] border border-white/10 px-3 py-2 font-mono text-xs"
+              placeholder="S... (secret key)"
+              value={sec}
+              onChange={e => setSec(e.target.value)}
+            />
+            <p className="text-xs text-white/50 mt-1">
+              ⚠️ Nikad ne čuvaj ili šalji secret u produkciji. Ovo je SAMO za lokalni MVP demo.
+            </p>
+          </div>
         </div>
       </Card>
 
       <Card title="Balances">
-        <ul className="space-y-2">
-          {balances.map((b, i) => (
-            <li key={i} className="flex items-center justify-between bg-[#0A0D14] border border-white/10 rounded-lg px-3 py-2">
-              <span>{b.asset}</span>
-              <span className="font-mono">{b.amount}</span>
-            </li>
-          ))}
-        </ul>
+        {balances.length === 0 ? (
+          <p className="text-white/60 text-sm">No balances yet. Click “Check Balance”.</p>
+        ) : (
+          <ul className="space-y-2">
+            {balances.map((b, i) => (
+              <li
+                key={i}
+                className="flex items-center justify-between bg-[#0A0D14] border border-white/10 rounded-lg px-3 py-2"
+              >
+                <span>{b.asset}</span>
+                <span className="font-mono">{b.amount}</span>
+              </li>
+            ))}
+          </ul>
+        )}
       </Card>
     </div>
   );
 }
+
 
 function SendScreen() {
   const [to, setTo] = useState("");
