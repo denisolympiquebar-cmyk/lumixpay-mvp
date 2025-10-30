@@ -2,10 +2,11 @@ import { useState } from "react";
 
 function Nav({ tab, setTab }) {
   const items = [
-    { id: "wallet", label: "Wallet" },
-    { id: "send", label: "Send" },
-    { id: "history", label: "History" },
-  ];
+  { id: "wallet", label: "Wallet" },
+  { id: "send", label: "Send" },
+  { id: "convert", label: "Convert" }, // ⬅️ NEW
+  { id: "history", label: "History" },
+];
   return (
     <div className="w-full border-b border-white/10 bg-[#0B0F19]">
       <div className="mx-auto max-w-5xl px-4 py-4 flex items-center justify-between">
@@ -208,38 +209,149 @@ function SendScreen() {
 }
 
 function HistoryScreen() {
-  const rows = [
-    { hash: "…abc123", asset: "USDC", amount: "-12.50", when: "2m ago", status: "success" },
-    { hash: "…def456", asset: "XLM", amount: "+10.00", when: "1h ago", status: "success" },
-  ];
+  const [rows, setRows] = useState(null);
+  const API = import.meta.env.VITE_API_URL || "http://localhost:3001";
+
+  useEffect(() => {
+    (async () => {
+      const r = await fetch(`${API}/history`);
+      const d = await r.json();
+      setRows(d);
+    })();
+  }, []);
+
+  if (!rows) return <Card title="Recent activity"><p className="text-white/60 text-sm">Loading…</p></Card>;
+
   return (
     <Card title="Recent activity">
       <div className="overflow-hidden rounded-xl border border-white/10">
         <table className="w-full text-sm">
           <thead className="bg-[#0B0F19] text-white/70">
             <tr>
-              <th className="text-left px-4 py-3">Tx</th>
-              <th className="text-left px-4 py-3">Asset</th>
-              <th className="text-left px-4 py-3">Amount</th>
-              <th className="text-left px-4 py-3">When</th>
-              <th className="text-left px-4 py-3">Status</th>
+              <th className="text-left px-4 py-3">Time</th>
+              <th className="text-left px-4 py-3">Type</th>
+              <th className="text-left px-4 py-3">Details</th>
             </tr>
           </thead>
           <tbody>
-            {rows.map((r, i) => (
-              <tr key={i} className="border-t border-white/10">
-                <td className="px-4 py-3 font-mono">{r.hash}</td>
-                <td className="px-4 py-3">{r.asset}</td>
-                <td className="px-4 py-3">{r.amount}</td>
-                <td className="px-4 py-3">{r.when}</td>
+            {rows.map((r) => (
+              <tr key={r.id} className="border-t border-white/10">
+                <td className="px-4 py-3">{new Date(r.at).toLocaleString()}</td>
+                <td className="px-4 py-3">{r.type}</td>
                 <td className="px-4 py-3">
-                  <span className="px-2 py-1 rounded bg-green-500/20 text-green-300 text-xs">{r.status}</span>
+                  <pre className="text-xs text-white/70 whitespace-pre-wrap">
+                    {JSON.stringify(r, null, 2)}
+                  </pre>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+    </Card>
+  );
+}
+
+function ConvertScreen() {
+  const [from, setFrom] = useState("EUR");
+  const [to, setTo] = useState("USDC");
+  const [amount, setAmount] = useState("100");
+  const [res, setRes] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const API = import.meta.env.VITE_API_URL || "http://localhost:3001";
+
+  function swap() {
+    const f = from;
+    setFrom(to);
+    setTo(f);
+  }
+
+  async function doConvert(e) {
+    e.preventDefault();
+    setLoading(true);
+    setRes(null);
+    try {
+      const r = await fetch(`${API}/convert`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ from, to, amount: Number(amount) }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d?.error || "Conversion error");
+      setRes(d);
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <Card title="Convert (MVP simulation)">
+      <form onSubmit={doConvert} className="grid md:grid-cols-3 gap-4">
+        <div>
+          <label className="block text-sm text-white/70 mb-1">From</label>
+          <select
+            className="w-full rounded-lg bg-[#0A0D14] border border-white/10 px-3 py-2"
+            value={from}
+            onChange={(e) => setFrom(e.target.value)}
+          >
+            <option>EUR</option>
+            <option>USDC</option>
+          </select>
+        </div>
+
+        <div>
+          <label className="block text-sm text-white/70 mb-1">Amount</label>
+          <input
+            className="w-full rounded-lg bg-[#0A0D14] border border-white/10 px-3 py-2"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm text-white/70 mb-1">To</label>
+          <div className="flex gap-2">
+            <select
+              className="w-full rounded-lg bg-[#0A0D14] border border-white/10 px-3 py-2"
+              value={to}
+              onChange={(e) => setTo(e.target.value)}
+            >
+              <option>USDC</option>
+              <option>EUR</option>
+            </select>
+            <button type="button" onClick={swap} className="px-3 rounded-lg border border-white/15 hover:border-white/30">
+              ⇄
+            </button>
+          </div>
+        </div>
+
+        <div className="md:col-span-3">
+          <button
+            className="w-full bg-primary/80 hover:bg-primary text-white rounded-lg px-4 py-2 transition disabled:opacity-60"
+            disabled={loading}
+          >
+            {loading ? "Converting…" : "Convert"}
+          </button>
+        </div>
+      </form>
+
+      {res && (
+        <div className="mt-4 p-4 rounded-xl border border-white/10 bg-[#0B0F19]">
+          <div className="text-sm">
+            <div>Rate: <span className="font-mono">{res.rate}</span></div>
+            <div>
+              {res.amountIn} {res.from} → <b>{res.amountOut} {res.to}</b>
+            </div>
+            <div className="text-white/60">tx: {res.id}</div>
+          </div>
+        </div>
+      )}
+
+      <p className="text-xs text-white/50 mt-3">
+        ⚠️ Ovo je MVP simulacija (bez pravog fiat on/off-rampa). U produkciji će se raditi preko Anchor SEP-24/31 integracije.
+      </p>
     </Card>
   );
 }
@@ -251,10 +363,11 @@ export default function App() {
     <div className="min-h-screen">
       <Nav tab={tab} setTab={setTab} />
       <main className="mx-auto max-w-5xl px-4 py-8 space-y-6">
-        {tab === "wallet" && <WalletScreen />}
-        {tab === "send" && <SendScreen />}
-        {tab === "history" && <HistoryScreen />}
-      </main>
+  {tab === "wallet" && <WalletScreen />}
+  {tab === "send" && <SendScreen />}
+  {tab === "convert" && <ConvertScreen />}{/* NEW */}
+  {tab === "history" && <HistoryScreen />}
+</main>
       <footer className="mx-auto max-w-5xl px-4 pb-8 text-xs text-white/40">
         2025 © LumixPay — Dark Fintech MVP UI
       </footer>

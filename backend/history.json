@@ -1,0 +1,28 @@
+[
+  {
+    "id": "b72c150d-0d5f-4079-b2dc-79faac66e42a",
+    "type": "create_account",
+    "at": "2025-10-30T09:29:21.609Z",
+    "publicKey": "GATYF4G4HA3JUKTKD5KT36RF4BLFQNRP2LYIEMYWPKLDK76GR5Q7UJLC"
+  },
+  {
+    "id": "771033fa-fb26-4317-aad1-52ed43e53444",
+    "type": "convert",
+    "at": "2025-10-30T09:30:03.753Z",
+    "from": "EUR",
+    "to": "USDC",
+    "amount": 100,
+    "rate": 1.02,
+    "amountOut": 102
+  },
+  {
+    "id": "4f5f94fb-b0fd-4c76-9f13-804e7fdf92f7",
+    "type": "convert",
+    "at": "2025-10-30T09:30:29.786Z",
+    "from": "USDC",
+    "to": "EUR",
+    "amount": 100,
+    "rate": 0.98,
+    "amountOut": 98
+  }
+]
